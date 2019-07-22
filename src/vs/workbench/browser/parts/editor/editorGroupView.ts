@@ -810,7 +810,7 @@ export class EditorGroupView extends Themable implements IEditorGroupView {
 		this._onWillOpenEditor.fire(event);
 		const prevented = event.isPrevented();
 		if (prevented) {
-			return prevented();
+			return prevented().then(withUndefinedAsNull);
 		}
 
 		// Proceed with opening
@@ -1498,7 +1498,7 @@ export class EditorGroupView extends Themable implements IEditorGroupView {
 }
 
 class EditorOpeningEvent implements IEditorOpeningEvent {
-	private override: () => Promise<IEditor>;
+	private override: () => Promise<IEditor | undefined>;
 
 	constructor(
 		private _group: GroupIdentifier,
@@ -1519,11 +1519,11 @@ class EditorOpeningEvent implements IEditorOpeningEvent {
 		return this._options;
 	}
 
-	prevent(callback: () => Promise<IEditor>): void {
+	prevent(callback: () => Promise<IEditor | undefined>): void {
 		this.override = callback;
 	}
 
-	isPrevented(): () => Promise<IEditor> {
+	isPrevented(): () => Promise<IEditor | undefined> {
 		return this.override;
 	}
 }
