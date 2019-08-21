@@ -615,9 +615,14 @@ export class DefaultSettings extends Disposable {
 				const value = prop.default;
 				const description = (prop.description || prop.markdownDescription || '').split('\n');
 				const overrides = OVERRIDE_PROPERTY_PATTERN.test(key) ? this.parseOverrideSettings(prop.default) : [];
-				const listItemType = prop.type === 'array' && prop.items && !isArray(prop.items) && prop.items.type && !isArray(prop.items.type)
-					? prop.items.type
-					: undefined;
+				let listItemType = undefined;
+				if (prop.type === 'array' && prop.items && !isArray(prop.items) && prop.items.type && !isArray(prop.items.type)) {
+					if (prop.items.enum && isArray(prop.items.enum)) {
+						listItemType = 'enum';
+					} else {
+						listItemType = prop.items.type;
+					}
+				}
 
 				result.push({
 					key,

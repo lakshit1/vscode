@@ -377,7 +377,7 @@ export class ListSettingWidget extends Disposable {
 		this.renderList();
 	}
 
-	private renderItem(item: IListViewItem, idx: number, listFocused: boolean): HTMLElement {
+	protected renderItem(item: IListViewItem, idx: number, listFocused: boolean): HTMLElement {
 		return item.editing ?
 			this.renderEditItem(item, idx) :
 			this.renderDataItem(item, idx, listFocused);
@@ -506,6 +506,38 @@ export class ListSettingWidget extends Disposable {
 				valueInput.focus();
 				valueInput.select();
 			}));
+
+		return rowElement;
+	}
+}
+
+export class ListOfEnumSettingWidget extends ListSettingWidget {
+	protected renderItem(item: IListViewItem, idx: number, listFocused: boolean): HTMLElement {
+		const rowElement = $('.setting-list-row');
+		rowElement.setAttribute('data-index', idx + '');
+		rowElement.setAttribute('tabindex', item.selected ? '0' : '-1');
+		DOM.toggleClass(rowElement, 'selected', item.selected);
+
+		// const actionBar = new ActionBar(rowElement);
+		// this.listDisposables.add(actionBar);
+
+		const valueElement = DOM.append(rowElement, $('.setting-list-value'));
+		valueElement.textContent = item.value;
+
+		// actionBar.push([
+		// 	this.createEditAction(idx),
+		// 	this.createDeleteAction(item.value, idx)
+		// ], { icon: true, label: false });
+
+		rowElement.title = this.getSettingListRowLocalizedStrings(item.value, item.sibling).settingListRowValueHintLabel;
+
+		if (item.selected) {
+			if (listFocused) {
+				setTimeout(() => {
+					rowElement.focus();
+				}, 10);
+			}
+		}
 
 		return rowElement;
 	}

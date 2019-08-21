@@ -32,6 +32,25 @@
       "type": "object",
       "title": "HTML",
       "properties": {
+				"html.diagnosticsTest": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"enum": [
+							"error",
+							"warning",
+							"info",
+							"hint"
+						]
+					},
+					"description": "Specify which diagnostic levels are enhanced. e.g. [ 'error', 'warning' ]. Valid values are any or all of: 'error', 'warning', 'info' & 'hint'",
+					"default": [
+						"error",
+						"warning",
+						"info",
+						"hint"
+					]
+				},
         "html.experimental.customData": {
           "type": "array",
           "description": "A list of JSON file paths that define custom tags, properties and other HTML syntax constructs. Only workspace folder setting will be read.",

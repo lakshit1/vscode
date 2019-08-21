@@ -26,6 +26,7 @@ export enum SettingValueType {
 	Number = 'number',
 	Boolean = 'boolean',
 	ArrayOfString = 'array-of-string',
+	ArrayOfEnum = 'array-of-enum',
 	Exclude = 'exclude',
 	Complex = 'complex',
 	NullableInteger = 'nullable-integer',

@@ -42,7 +42,7 @@ import { attachButtonStyler, attachInputBoxStyler, attachSelectBoxStyler, attach
 import { ICssStyleCollector, ITheme, IThemeService, registerThemingParticipant } from 'vs/platform/theme/common/themeService';
 import { ITOCEntry } from 'vs/workbench/contrib/preferences/browser/settingsLayout';
 import { ISettingsEditorViewState, settingKeyToDisplayFormat, SettingsTreeElement, SettingsTreeGroupChild, SettingsTreeGroupElement, SettingsTreeNewExtensionsElement, SettingsTreeSettingElement } from 'vs/workbench/contrib/preferences/browser/settingsTreeModels';
-import { ListSettingWidget, IListChangeEvent, IListDataItem, settingsHeaderForeground, settingsNumberInputBackground, settingsNumberInputBorder, settingsNumberInputForeground, settingsSelectBackground, settingsSelectBorder, settingsSelectForeground, settingsSelectListBorder, settingsTextInputBackground, settingsTextInputBorder, settingsTextInputForeground, ExcludeSettingWidget } from 'vs/workbench/contrib/preferences/browser/settingsWidgets';
+import { ListSettingWidget, IListChangeEvent, IListDataItem, settingsHeaderForeground, settingsNumberInputBackground, settingsNumberInputBorder, settingsNumberInputForeground, settingsSelectBackground, settingsSelectBorder, settingsSelectForeground, settingsSelectListBorder, settingsTextInputBackground, settingsTextInputBorder, settingsTextInputForeground, ExcludeSettingWidget, ListOfEnumSettingWidget } from 'vs/workbench/contrib/preferences/browser/settingsWidgets';
 import { SETTINGS_EDITOR_COMMAND_SHOW_CONTEXT_MENU } from 'vs/workbench/contrib/preferences/common/preferences';
 import { ISetting, ISettingsGroup, SettingValueType } from 'vs/workbench/services/preferences/common/preferences';
 import { IWorkbenchEnvironmentService } from 'vs/workbench/services/environment/common/environmentService';
@@ -228,6 +228,10 @@ interface ISettingListItemTemplate extends ISettingItemTemplate<void> {
 	listWidget: ListSettingWidget;
 }
 
+interface ISettingListOfEnumItemTemplate extends ISettingItemTemplate<void> {
+	listWidget: ListSettingWidget;
+}
+
 interface ISettingExcludeItemTemplate extends ISettingItemTemplate<void> {
 	excludeWidget: ListSettingWidget;
 }
@@ -247,6 +251,7 @@ const SETTINGS_NUMBER_TEMPLATE_ID = 'settings.number.template';
 const SETTINGS_ENUM_TEMPLATE_ID = 'settings.enum.template';
 const SETTINGS_BOOL_TEMPLATE_ID = 'settings.bool.template';
 const SETTINGS_ARRAY_TEMPLATE_ID = 'settings.array.template';
+const SETTINGS_ARRAY_OF_ENUM_TEMPLATE_ID = 'settings.arrayOfEnum.template';
 const SETTINGS_EXCLUDE_TEMPLATE_ID = 'settings.exclude.template';
 const SETTINGS_COMPLEX_TEMPLATE_ID = 'settings.complex.template';
 const SETTINGS_NEW_EXTENSIONS_TEMPLATE_ID = 'settings.newExtensions.template';
@@ -758,6 +763,90 @@ export class SettingArrayRenderer extends AbstractSettingRenderer implements ITr
 	}
 }
 
+export class SettingArrayOfEnumRenderer extends AbstractSettingRenderer implements ITreeRenderer<SettingsTreeSettingElement, never, ISettingListOfEnumItemTemplate> {
+	templateId = SETTINGS_ARRAY_OF_ENUM_TEMPLATE_ID;
+
+	renderTemplate(container: HTMLElement): ISettingListOfEnumItemTemplate {
+		const common = this.renderCommonTemplate(null, container, 'list');
+
+		const listWidget = this._instantiationService.createInstance(ListOfEnumSettingWidget, common.controlElement);
+		listWidget.domNode.classList.add(AbstractSettingRenderer.CONTROL_CLASS);
+		common.toDispose.push(listWidget);
+
+		const template: ISettingListOfEnumItemTemplate = {
+			...common,
+			listWidget
+		};
+
+		this.addSettingElementFocusHandler(template);
+
+		common.toDispose.push(listWidget.onDidChangeList(e => this.onDidChangeList(template, e)));
+
+		return template;
+	}
+
+	private onDidChangeList(template: ISettingListOfEnumItemTemplate, e: IListChangeEvent): void {
+		if (template.context) {
+			let newValue: any[] = [];
+			if (isArray(template.context.scopeValue)) {
+				newValue = [...template.context.scopeValue];
+			} else if (isArray(template.context.value)) {
+				newValue = [...template.context.value];
+			}
+
+			if (e.targetIndex !== undefined) {
+				// Delete value
+				if (!e.value && e.originalValue && e.targetIndex > -1) {
+					newValue.splice(e.targetIndex, 1);
+				}
+				// Update value
+				else if (e.value && e.originalValue) {
+					if (e.targetIndex > -1) {
+						newValue[e.targetIndex] = e.value;
+					}
+					// For some reason, we are updating and cannot find original value
+					// Just append the value in this case
+					else {
+						newValue.push(e.value);
+					}
+				}
+				// Add value
+				else if (e.value && !e.originalValue && e.targetIndex >= newValue.length) {
+					newValue.push(e.value);
+				}
+			}
+			if (
+				template.context.defaultValue &&
+				isArray(template.context.defaultValue) &&
+				template.context.defaultValue.length === newValue.length &&
+				template.context.defaultValue.join() === newValue.join()
+			) {
+				return this._onDidChangeSetting.fire({
+					key: template.context.setting.key,
+					value: undefined, // reset setting
+					type: template.context.valueType
+				});
+			}
+
+			this._onDidChangeSetting.fire({
+				key: template.context.setting.key,
+				value: newValue,
+				type: template.context.valueType
+			});
+		}
+	}
+
+	renderElement(element: ITreeNode<SettingsTreeSettingElement, never>, index: number, templateData: ISettingListOfEnumItemTemplate): void {
+		super.renderSettingElement(element, index, templateData);
+	}
+
+	protected renderValue(dataElement: SettingsTreeSettingElement, template: ISettingListOfEnumItemTemplate, onChange: (value: string) => void): void {
+		const value = getListDisplayValue(dataElement);
+		template.listWidget.setValue(value);
+		template.context = dataElement;
+	}
+}
+
 export class SettingExcludeRenderer extends AbstractSettingRenderer implements ITreeRenderer<SettingsTreeSettingElement, never, ISettingExcludeItemTemplate> {
 	templateId = SETTINGS_EXCLUDE_TEMPLATE_ID;
 
@@ -1159,6 +1248,7 @@ export class SettingTreeRenderers {
 			this._instantiationService.createInstance(SettingNumberRenderer, this.settingActions),
 			this._instantiationService.createInstance(SettingBoolRenderer, this.settingActions),
 			this._instantiationService.createInstance(SettingArrayRenderer, this.settingActions),
+			this._instantiationService.createInstance(SettingArrayOfEnumRenderer, this.settingActions),
 			this._instantiationService.createInstance(SettingComplexRenderer, this.settingActions),
 			this._instantiationService.createInstance(SettingTextRenderer, this.settingActions),
 			this._instantiationService.createInstance(SettingExcludeRenderer, this.settingActions),
@@ -1375,6 +1465,10 @@ class SettingsTreeDelegate implements IListVirtualDelegate<SettingsTreeGroupChil
 
 			if (element.valueType === SettingValueType.ArrayOfString) {
 				return SETTINGS_ARRAY_TEMPLATE_ID;
+			}
+
+			if (element.valueType === SettingValueType.ArrayOfEnum) {
+				return SETTINGS_ARRAY_OF_ENUM_TEMPLATE_ID;
 			}
 
 			if (element.valueType === SettingValueType.Exclude) {
