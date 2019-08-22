@@ -556,7 +556,7 @@ const generateVSCodeConfigurationTask = task.define('generate-vscode-configurati
 		const timer = setTimeout(() => {
 			codeProc.kill();
 			reject(new Error('export-default-configuration process timed out'));
-		}, 10 * 1000);
+		}, 20 * 1000);
 
 		codeProc.stdout.on('data', d => console.log(d.toString()));
 		codeProc.stderr.on('data', d => console.log(d.toString()));
